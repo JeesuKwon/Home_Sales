@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Concert Ticketing Game</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <h1>Concert Ticketing Game</h1>
+      </header>
+
+      <!-- Start Screen -->
+      <section id="start-screen" class="screen screen--active">
+        <div class="card">
+          <h2>Ready?</h2>
+          <button id="btn-open" class="btn btn--xl">Ticket Open</button>
+        </div>
+      </section>
+
+      <!-- Date Selection Screen -->
+      <section id="date-screen" class="screen">
+        <div class="card">
+          <h2>Select a Concert Date</h2>
+          <div id="date-list" class="date-list"></div>
+        </div>
+      </section>
+
+      <!-- Seat Map Screen -->
+      <section id="seat-screen" class="screen">
+        <div class="seat-layout card">
+          <div class="seat-layout__header">
+            <h2>Pick Your Seats</h2>
+            <div class="legend">
+              <span class="legend__item"><span class="seat seat--legend seat--available"></span>Available</span>
+              <span class="legend__item"><span class="seat seat--legend seat--taken"></span>Taken</span>
+              <span class="legend__item"><span class="seat seat--legend seat--selected"></span>Selected</span>
+            </div>
+          </div>
+          <div class="screen-indicator">Stage</div>
+          <div id="seat-map" class="seat-map" aria-label="Seat map" role="grid"></div>
+          <div class="actions">
+            <div class="selection-info">
+              <span id="selected-count">0</span> selected
+            </div>
+            <button id="btn-reserve" class="btn" disabled>Reserve</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Confirmation Screen -->
+      <section id="confirmation-screen" class="screen">
+        <div class="card">
+          <h2>Congratulations! Your seats are reserved.</h2>
+          <p id="confirmed-seats"></p>
+          <button id="btn-restart" class="btn">Play Again</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal__backdrop" data-modal-close></div>
+      <div class="modal__dialog" role="document">
+        <div class="modal__content">
+          <h3 id="modal-title">Please Try Again</h3>
+          <p id="modal-message">Someone else has reserved those seats. Please review your selection and try again.</p>
+          <button class="btn" data-modal-close>OK</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+  </html>
+
