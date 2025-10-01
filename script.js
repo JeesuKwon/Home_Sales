@@ -229,4 +229,82 @@
     switchScreen(screens.start);
   });
 })();
+// --- Concurrency simulation + difficulty scaling ---
+(function(){
+  // seed 80k~120k
+  let concurrency = Math.floor(80000 + Math.random()*40000);
+  const el = document.getElementById('concurrency-banner');
+  const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+
+  function updateBanner(){
+    // ±0.5~1.5% 변동
+    const pct = 0.005 + Math.random()*0.01;
+    const dir = Math.random()<0.5 ? -1 : 1;
+    concurrency = clamp(Math.floor(concurrency * (1 + dir*pct)), 30000, 180000);
+    if(el) el.textContent = `Concurrent users: ${concurrency.toLocaleString()} waiting`;
+  }
+  setInterval(updateBanner, 1000); updateBanner();
+
+  // 실패확률: base 0.6 에서 동시접속자 가중. 상한 0.95
+  function getFailProb(){
+    const base = 0.6;
+    return clamp(base + (concurrency/50000)*0.3, 0.6, 0.95);
+  }
+
+  // 기존 예약 함수 훅: 전역에 attemptReserve가 있으면 래핑, 없으면 버튼 id로 바인딩
+  let failStreak = 0, cooling = false, cooldownTimer = null;
+
+  function applyCooldown(ms){
+    cooling = true;
+    const btn = document.querySelector('#reserveBtn, button.reserve, button#reserve'); // 가능한 버튼 셀렉터
+    if(btn){
+      const original = btn.textContent;
+      let left = Math.ceil(ms/1000);
+      btn.disabled = true;
+      btn.textContent = `Cooling ${left}s`;
+      clearInterval(cooldownTimer);
+      cooldownTimer = setInterval(()=>{
+        left--; btn.textContent = `Cooling ${left}s`;
+        if(left<=0){ clearInterval(cooldownTimer); btn.disabled=false; btn.textContent=original; cooling=false; }
+      },1000);
+    } else {
+      setTimeout(()=>{ cooling=false; }, ms);
+    }
+  }
+
+  // 공개 함수: 좌석 id를 받아 성공/실패 분기만 처리
+  window.__attemptReserveWithLoad = function(coreReserveFn, seatId){
+    if(cooling) return;
+    const p = getFailProb();
+    if(Math.random() < p){
+      // 실패 경로
+      failStreak++;
+      // 기존 실패 핸들러 호출 시그니처 추정: coreReserveFn(false, seatId) 혹은 별도 fail()
+      try{ coreReserveFn(false, seatId); }catch(e){}
+      if(failStreak % 3 === 0){ applyCooldown(2000 + Math.floor(Math.random()*3000)); }
+    } else {
+      failStreak = 0;
+      try{ coreReserveFn(true, seatId); }catch(e){}
+    }
+  };
+
+  // 일반 버튼만 있는 경우를 위한 바인딩(필요 시 사용)
+  const reserveBtn = document.querySelector('#reserveBtn, button.reserve, button#reserve');
+  if(reserveBtn && !reserveBtn.dataset.loadHooked){
+    reserveBtn.dataset.loadHooked = "1";
+    const origHandler = reserveBtn.onclick || (()=>{});
+    reserveBtn.onclick = (e)=>{
+      e?.preventDefault?.();
+      window.__attemptReserveWithLoad((ok)=>{
+        // 성공/실패 UI는 기존 함수가 처리하지 않는 경우 대비한 최소 처리
+        const okBox = document.querySelector('#success, .success, [data-role="success"]');
+        const errBox = document.querySelector('#fail, .fail, [data-role="fail"]');
+        if(ok && okBox){ okBox.style.display='block'; if(errBox) errBox.style.display='none'; }
+        if(!ok && errBox){ errBox.style.display='block'; if(okBox) okBox.style.display='none'; }
+        // 원래 핸들러 호출
+        try{ origHandler(); }catch(_){}
+      });
+    };
+  }
+})();
 
