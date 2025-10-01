@@ -247,8 +247,8 @@
 
   // 실패확률: base 0.6 에서 동시접속자 가중. 상한 0.95
   function getFailProb(){
-    const base = 0.6;
-    return clamp(base + (concurrency/50000)*0.3, 0.6, 0.95);
+    const base = 0.75;
+    return clamp(base + (concurrency/50000)*0.5, 0.75, 0.98);
   }
 
   // 기존 예약 함수 훅: 전역에 attemptReserve가 있으면 래핑, 없으면 버튼 id로 바인딩
