@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Concert Ticketing Game</title>
     <link rel="stylesheet" href="./styles.css" />
+    <!-- in <head> -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+<!-- replace your existing CSS/JS links to add cache-busting -->
+<link rel="stylesheet" href="styles.css?v=20251002">
+<script defer src="script.js?v=20251002"></script>
+
+<!-- in <body>, at very top -->
+<div id="concurrency-banner" aria-live="polite">Concurrent users: …</div>
+
   </head>
   <body>
     <div class="app">
