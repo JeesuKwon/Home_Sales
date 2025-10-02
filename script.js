@@ -151,7 +151,7 @@
     document.body.style.paddingTop = (parseInt(getComputedStyle(document.body).paddingTop || 0,10) + 56) + 'px';
   }
 
-  // ===== High-fail difficulty (no cooldown, no rate-limit) =====
+  // ===== Difficulty model (success +10%p) =====
   let concurrency = Math.floor(80000 + Math.random()*40000);
   function stepConcurrency(){
     const pct = 0.005 + Math.random()*0.01;
@@ -161,10 +161,11 @@
   }
   setInterval(stepConcurrency, 1000); stepConcurrency();
 
-  const BASE_FAIL = 0.90;             // 기본 90% 실패
+  const BASE_FAIL = 0.90;             // 원래 실패 확률 베이스
+  const SUCCESS_BOOST = 0.10;         // 성공을 10%p 더 잘되게
   const CONC_FACTOR = 0.6 / 40000;    // 동접 가중
-  const MAX_FAIL = 0.995;             // 상한
-  let failStreak = 0;                  // 메시지·연출용 누적만 사용
+  const MAX_FAIL = 0.995;             // 실패 상한
+  let failStreak = 0;
 
   // 간헐 과부하(+10%) 가끔
   let surgeBoost = 0;
@@ -177,8 +178,10 @@
 
   function getFailProb(){
     const concPart = concurrency * CONC_FACTOR;
-    const seatPart = Math.min(selectedSeatIds.size * 0.02, 0.10); // 좌석 많이 잡을수록 더 어려움
-    return clamp(BASE_FAIL + concPart + surgeBoost + seatPart, BASE_FAIL, MAX_FAIL);
+    const seatPart = Math.min(selectedSeatIds.size * 0.02, 0.10); // 좌석 많이 잡을수록 불리
+    const rawFail = BASE_FAIL + concPart + surgeBoost + seatPart;
+    // 성공률을 정확히 +10%p 올리기 → 실패율은 10%p 낮춘다
+    return clamp(rawFail - SUCCESS_BOOST, 0.0, MAX_FAIL);
   }
 
   function formatDateLabel(dateId) {
@@ -197,17 +200,16 @@
     if (!selectedDateId || selectedSeatIds.size === 0) return;
     const takenSet = ensureDateTakenSet(selectedDateId);
 
-    // 실패 확률 계산
     const failChance = getFailProb();
     const didFail = Math.random() < failChance;
 
-    // 경합으로 이미 선점된 좌석이 있으면 강제 실패
+    // 이미 선점된 좌석이 섞여 있으면 강제 실패
     let raceTaken = false;
     selectedSeatIds.forEach((id) => { if (takenSet.has(id)) raceTaken = true; });
 
     if (didFail || raceTaken) {
       failStreak++;
-      // 일부 좌석을 남에게 뺏기도록
+      // 일부 좌석을 남에게 빼앗김 처리
       const selected = Array.from(selectedSeatIds);
       const toTakeCount = Math.max(1, Math.floor(selected.length * (0.4 + Math.random() * 0.4))); // 40~80%
       shuffleArray(selected);
