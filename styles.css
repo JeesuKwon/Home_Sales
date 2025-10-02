@@ -229,3 +229,4 @@ html,body{background:var(--bg); color:#e8e8e8; font-family:"Press Start 2P","VT3
 body{ padding-top:56px; }
 button,.seat,.card{ image-rendering: pixelated; border:8px solid #000; outline:2px solid #333; }
 button:hover{ outline-color:#666; }
+button.is-cooling{opacity:0.6;pointer-events:none;}
