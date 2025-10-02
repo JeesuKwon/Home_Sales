@@ -1,50 +1,95 @@
 (function () {
-  // ===== Seats & UI base =====
+  /* =========================
+   * Config
+   * ========================= */
   const ROWS = 10;
   const COLS = 12;
   const DATES = [
-    { id: '2025-03-01', label: 'March 1' },
-    { id: '2025-03-02', label: 'March 2' },
-    { id: '2025-03-03', label: 'March 3' }
+    { id: "2025-03-01", label: "March 1" },
+    { id: "2025-03-02", label: "March 2" },
+    { id: "2025-03-03", label: "March 3" },
   ];
 
+  // 난이도: 최종 성공률 = BASE_SUCCESS + SUCCESS_BONUS - 페널티들
+  const BASE_SUCCESS = 0.30;     // 기본 성공률 30%
+  const SUCCESS_BONUS = 0.10;    // +10%p → 기본 40% 체감
+  const MAX_SUCCESS = 0.95;      // 너무 쉬워지는 것 방지
+  const MIN_SUCCESS = 0.02;      // 너무 어려운 것 방지
+
+  // 사전 선점 좌석 비율
+  const PRETAKEN_MIN = 0.15;
+  const PRETAKEN_MAX = 0.25;
+
+  // 동시접속 시뮬레이션
+  const CONC_MIN = 3000;
+  const CONC_MAX = 60000;
+  const CONC_STEP_MS = 1000;
+
+  // 실패 시 일부 좌석을 빼앗기는 비율 범위
+  const STEAL_RATIO_MIN = 0.4;
+  const STEAL_RATIO_MAX = 0.8;
+
+  // “경쟁 때문에 빼앗김” 연출 확률(실패로 판정된 경우에만 적용)
+  const RACE_STEAL_PROB = 0.7;
+
+  /* =========================
+   * DOM
+   * ========================= */
   const screens = {
-    start: document.getElementById('start-screen'),
-    date: document.getElementById('date-screen'),
-    seat: document.getElementById('seat-screen'),
-    confirmation: document.getElementById('confirmation-screen')
+    start: document.getElementById("start-screen"),
+    date: document.getElementById("date-screen"),
+    seat: document.getElementById("seat-screen"),
+    confirmation: document.getElementById("confirmation-screen"),
   };
-  const btnOpen = document.getElementById('btn-open');
-  const dateList = document.getElementById('date-list');
-  const seatMap = document.getElementById('seat-map');
-  const btnReserve = document.getElementById('btn-reserve');
-  const selectedCountEl = document.getElementById('selected-count');
-  const confirmedSeatsEl = document.getElementById('confirmed-seats');
+  const btnOpen = document.getElementById("btn-open");
+  const dateList = document.getElementById("date-list");
+  const seatMap = document.getElementById("seat-map");
+  const btnReserve = document.getElementById("btn-reserve");
+  const selectedCountEl = document.getElementById("selected-count");
+  const confirmedSeatsEl = document.getElementById("confirmed-seats");
 
-  // Modal
-  const modal = document.getElementById('modal');
-  const modalMessage = document.getElementById('modal-message');
-  const modalCloseEls = modal.querySelectorAll('[data-modal-close]');
+  const modal = document.getElementById("modal");
+  const modalMessage = document.getElementById("modal-message");
+  const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
-  // State
+  /* =========================
+   * State
+   * ========================= */
   let selectedDateId = null;
   const dateIdToTakenSet = new Map(); // dateId -> Set<seatId>
   let selectedSeatIds = new Set();
 
-  // Helpers
-  const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
-  const rand = (a, b) => Math.floor(a + Math.random() * (b - a));
-  const alphaForRow = (i) => String.fromCharCode('A'.charCodeAt(0) + i);
-  const seatId = (r, c) => `${alphaForRow(r)}${c + 1}`;
+  // 동시접속 시뮬레이션
+  let concurrency = randInt(CONC_MIN, CONC_MAX);
+  let concTimer = null;
 
+  /* =========================
+   * Utils
+   * ========================= */
+  function clamp(x, min, max) { return Math.max(min, Math.min(max, x)); }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function randInt(a, b) { return Math.floor(rand(a, b)); }
+  function alphaForRow(i) { return String.fromCharCode("A".charCodeAt(0) + i); }
+  function seatId(r, c) { return `${alphaForRow(r)}${c + 1}`; }
+
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /* =========================
+   * Pre-taken seats per date
+   * ========================= */
   function pickRandomTakenSeats(totalSeats) {
-    // 18% - 32% initially taken
-    const takenRatio = 0.18 + Math.random() * 0.14;
+    const takenRatio = rand(PRETAKEN_MIN, PRETAKEN_MAX);
     const target = Math.floor(totalSeats * takenRatio);
     const taken = new Set();
     while (taken.size < target) {
-      const r = Math.floor(Math.random() * ROWS);
-      const c = Math.floor(Math.random() * COLS);
+      const r = randInt(0, ROWS);
+      const c = randInt(0, COLS);
       taken.add(seatId(r, c));
     }
     return taken;
@@ -55,19 +100,26 @@
     }
     return dateIdToTakenSet.get(dateId);
   }
+
+  /* =========================
+   * Screens
+   * ========================= */
   function switchScreen(next) {
-    Object.values(screens).forEach((el) => el && el.classList.remove('screen--active'));
-    next.classList.add('screen--active');
+    Object.values(screens).forEach((el) => el && el.classList.remove("screen--active"));
+    next.classList.add("screen--active");
   }
+
   function renderDateButtons() {
-    dateList.innerHTML = '';
+    dateList.innerHTML = "";
     DATES.forEach((d) => {
-      const btn = document.createElement('button');
-      btn.className = 'date-btn';
-      btn.type = 'button';
+      const btn = document.createElement("button");
+      btn.className = "date-btn";
+      btn.type = "button";
       btn.dataset.dateId = d.id;
-      btn.innerHTML = `<div style="font-size:14px;color:#a3a4c0">2025 • 7:00 PM</div><div style="font-size:20px;font-weight:800;">${d.label}</div>`;
-      btn.addEventListener('click', () => {
+      btn.innerHTML =
+        `<div style="font-size:14px;color:#a3a4c0">2025 • 7:00 PM</div>` +
+        `<div style="font-size:20px;font-weight:800;">${d.label}</div>`;
+      btn.addEventListener("click", () => {
         selectedDateId = d.id;
         selectedSeatIds = new Set();
         renderSeatMap();
@@ -77,32 +129,37 @@
       dateList.appendChild(btn);
     });
   }
+
   function renderSeatMap() {
     const takenSet = ensureDateTakenSet(selectedDateId);
-    seatMap.innerHTML = '';
-    seatMap.setAttribute('role', 'grid');
+    seatMap.innerHTML = "";
+    seatMap.setAttribute("role", "grid");
+
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const id = seatId(r, c);
         const isTaken = takenSet.has(id);
         const isSelected = selectedSeatIds.has(id);
 
-        const seat = document.createElement('button');
-        seat.className = 'seat ' + (isTaken ? 'seat--taken' : isSelected ? 'seat--selected' : 'seat--available');
-        seat.type = 'button';
+        const seat = document.createElement("button");
+        seat.className = "seat " + (isTaken ? "seat--taken" : isSelected ? "seat--selected" : "seat--available");
+        seat.type = "button";
         seat.dataset.seatId = id;
-        seat.setAttribute('aria-label', `Seat ${id}`);
-        seat.setAttribute('role', 'gridcell');
+        seat.setAttribute("aria-label", `Seat ${id}`);
+        seat.setAttribute("role", "gridcell");
         seat.textContent = id;
+
         if (isTaken) {
-          seat.setAttribute('aria-disabled', 'true');
+          seat.setAttribute("aria-disabled", "true");
           seat.disabled = true;
         }
-        seat.addEventListener('click', () => onSeatClick(id));
+
+        seat.addEventListener("click", () => onSeatClick(id));
         seatMap.appendChild(seat);
       }
     }
   }
+
   function onSeatClick(id) {
     const takenSet = ensureDateTakenSet(selectedDateId);
     if (takenSet.has(id)) return;
@@ -111,140 +168,162 @@
     else selectedSeatIds.add(id);
 
     updateSelectionUI();
+
     const el = seatMap.querySelector(`[data-seat-id="${id}"]`);
     if (!el) return;
-    el.classList.toggle('seat--selected');
-    el.classList.toggle('seat--available');
+    el.classList.toggle("seat--selected");
+    el.classList.toggle("seat--available");
   }
+
   function updateSelectionUI() {
     const count = selectedSeatIds.size;
     selectedCountEl.textContent = String(count);
     btnReserve.disabled = count === 0;
   }
+
   function showModal(message) {
     modalMessage.textContent = message;
-    modal.classList.add('modal--open');
-    modal.setAttribute('aria-hidden', 'false');
+    modal.classList.add("modal--open");
+    modal.setAttribute("aria-hidden", "false");
   }
+
   function closeModal() {
-    modal.classList.remove('modal--open');
-    modal.setAttribute('aria-hidden', 'true');
+    modal.classList.remove("modal--open");
+    modal.setAttribute("aria-hidden", "true");
   }
 
-  // ===== Concurrency banner (auto-create if missing) =====
-  let banner = document.getElementById('concurrency-banner');
+  /* =========================
+   * Concurrency banner
+   * ========================= */
+  let banner = document.getElementById("concurrency-banner");
   if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'concurrency-banner';
-    banner.setAttribute('aria-live', 'polite');
-    banner.style.position = 'fixed';
-    banner.style.top = '0';
-    banner.style.left = '0';
-    banner.style.right = '0';
-    banner.style.padding = '12px 16px';
-    banner.style.textAlign = 'center';
-    banner.style.zIndex = '9999';
-    banner.style.background = '#2a2f36';
-    banner.style.color = '#ffd166';
-    banner.style.borderBottom = '8px solid #101317';
+    banner = document.createElement("div");
+    banner.id = "concurrency-banner";
+    banner.setAttribute("aria-live", "polite");
+    banner.style.position = "fixed";
+    banner.style.top = "0";
+    banner.style.left = "0";
+    banner.style.right = "0";
+    banner.style.padding = "12px 16px";
+    banner.style.textAlign = "center";
+    banner.style.zIndex = "9999";
+    banner.style.background = "#2a2f36";
+    banner.style.color = "#ffd166";
+    banner.style.borderBottom = "8px solid #101317";
     document.body.prepend(banner);
-    document.body.style.paddingTop = (parseInt(getComputedStyle(document.body).paddingTop || 0,10) + 56) + 'px';
+    document.body.style.paddingTop =
+      (parseInt(getComputedStyle(document.body).paddingTop || 0, 10) + 56) + "px";
   }
 
-  // ===== Difficulty model (success +10%p) =====
-  let concurrency = Math.floor(80000 + Math.random()*40000);
-  function stepConcurrency(){
-    const pct = 0.005 + Math.random()*0.01;
+  function tickConcurrency() {
+    // 부드러운 랜덤 워크
+    const pct = rand(0.005, 0.02);
     const dir = Math.random() < 0.5 ? -1 : 1;
-    concurrency = clamp(Math.floor(concurrency*(1+dir*pct)), 30000, 220000);
+    concurrency = clamp(Math.floor(concurrency * (1 + dir * pct)), CONC_MIN, CONC_MAX);
     banner.textContent = `Concurrent users: ${concurrency.toLocaleString()} waiting`;
   }
-  setInterval(stepConcurrency, 1000); stepConcurrency();
 
-  const BASE_FAIL = 0.90;             // 원래 실패 확률 베이스
-  const SUCCESS_BOOST = 0.10;         // 성공을 10%p 더 잘되게
-  const CONC_FACTOR = 0.6 / 40000;    // 동접 가중
-  const MAX_FAIL = 0.995;             // 실패 상한
-  let failStreak = 0;
+  /* =========================
+   * Success probability model
+   * ========================= */
+  function currentSuccessProb() {
+    // 동접 영향: 0 ~ 0.25p 성공률 감소
+    const concNorm = (concurrency - CONC_MIN) / (CONC_MAX - CONC_MIN); // 0~1
+    const concPenalty = 0.25 * clamp(concNorm, 0, 1);
 
-  // 간헐 과부하(+10%) 가끔
-  let surgeBoost = 0;
-  (function scheduleSurge(){
-    setTimeout(()=>{
-      surgeBoost = 0.10;
-      setTimeout(()=>{ surgeBoost = 0; scheduleSurge(); }, rand(5000,10000));
-    }, rand(15000,30000));
-  })();
+    // 선택 좌석 수 영향: 최대 0.10p 성공률 감소
+    const seatPenalty = Math.min(selectedSeatIds.size * 0.03, 0.10);
 
-  function getFailProb(){
-    const concPart = concurrency * CONC_FACTOR;
-    const seatPart = Math.min(selectedSeatIds.size * 0.02, 0.10); // 좌석 많이 잡을수록 불리
-    const rawFail = BASE_FAIL + concPart + surgeBoost + seatPart;
-    // 성공률을 정확히 +10%p 올리기 → 실패율은 10%p 낮춘다
-    return clamp(rawFail - SUCCESS_BOOST, 0.0, MAX_FAIL);
+    // 드문 과부하 스파이크: 0 ~ 0.15p 성공률 감소
+    const spikePenalty = spikeActive ? 0.15 : 0;
+
+    const raw = BASE_SUCCESS + SUCCESS_BONUS - concPenalty - seatPenalty - spikePenalty;
+    return clamp(raw, MIN_SUCCESS, MAX_SUCCESS);
   }
 
+  // 간헐적 스파이크
+  let spikeActive = false;
+  function scheduleSpike() {
+    const nextIn = randInt(12000, 22000);
+    setTimeout(() => {
+      spikeActive = true;
+      setTimeout(() => { spikeActive = false; scheduleSpike(); }, randInt(3000, 7000));
+    }, nextIn);
+  }
+
+  /* =========================
+   * Reservation flow
+   * ========================= */
   function formatDateLabel(dateId) {
     const d = DATES.find((x) => x.id === dateId);
     return d ? d.label : dateId;
   }
-  function shuffleArray(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
 
-  async function attemptReserve() {
-    if (!selectedDateId || selectedSeatIds.size === 0) return;
-    const takenSet = ensureDateTakenSet(selectedDateId);
-
-    const failChance = getFailProb();
-    const didFail = Math.random() < failChance;
-
-    // 이미 선점된 좌석이 섞여 있으면 강제 실패
-    let raceTaken = false;
-    selectedSeatIds.forEach((id) => { if (takenSet.has(id)) raceTaken = true; });
-
-    if (didFail || raceTaken) {
-      failStreak++;
-      // 일부 좌석을 남에게 빼앗김 처리
-      const selected = Array.from(selectedSeatIds);
-      const toTakeCount = Math.max(1, Math.floor(selected.length * (0.4 + Math.random() * 0.4))); // 40~80%
-      shuffleArray(selected);
-      for (let i = 0; i < toTakeCount; i++) {
-        takenSet.add(selected[i]);
-        selectedSeatIds.delete(selected[i]);
-      }
-      renderSeatMap(); updateSelectionUI();
-
-      // 고정 실패 문구
-      showModal('Someone else has reserved those seats. Please review your selection and try again');
-      return;
-    }
-
-    // 성공
-    failStreak = 0;
+  function commitReservation(takenSet) {
     const reserved = Array.from(selectedSeatIds);
     reserved.forEach((id) => takenSet.add(id));
-    confirmedSeatsEl.textContent = `Reserved seats for ${formatDateLabel(selectedDateId)}: ${reserved.join(', ')}`;
+    confirmedSeatsEl.textContent =
+      `Reserved seats for ${formatDateLabel(selectedDateId)}: ${reserved.join(", ")}`;
     selectedSeatIds.clear();
     renderSeatMap(); updateSelectionUI();
     switchScreen(screens.confirmation);
   }
 
-  // ===== Wiring =====
-  btnOpen.addEventListener('click', () => {
+  function failReservation(takenSet) {
+    // 실패 시 일부 좌석이 경쟁자에게 빼앗긴 것으로 처리
+    if (Math.random() < RACE_STEAL_PROB && selectedSeatIds.size > 0) {
+      const selected = shuffleArray(Array.from(selectedSeatIds));
+      const stealCnt = Math.max(1, Math.floor(selected.length * rand(STEAL_RATIO_MIN, STEAL_RATIO_MAX)));
+      for (let i = 0; i < stealCnt; i++) {
+        takenSet.add(selected[i]);
+        selectedSeatIds.delete(selected[i]);
+      }
+      renderSeatMap(); updateSelectionUI();
+    }
+    showModal("Someone else has reserved those seats. Please review your selection and try again");
+  }
+
+  function attemptReserve() {
+    if (!selectedDateId || selectedSeatIds.size === 0) return;
+
+    const takenSet = ensureDateTakenSet(selectedDateId);
+
+    // 1) 성공 판정 먼저 → 성공이면 바로 커밋
+    const p = currentSuccessProb();
+    const win = Math.random() < p;
+
+    if (win) {
+      commitReservation(takenSet);
+      return;
+    }
+
+    // 2) 실패 처리
+    failReservation(takenSet);
+  }
+
+  /* =========================
+   * Wiring
+   * ========================= */
+  btnOpen.addEventListener("click", () => {
     renderDateButtons();
     switchScreen(screens.date);
   });
-  btnReserve.addEventListener('click', () => { attemptReserve(); });
-  modalCloseEls.forEach((el) => el.addEventListener('click', closeModal));
-  modal.addEventListener('click', (e) => { if (e.target && e.target.hasAttribute('data-modal-close')) closeModal(); });
-  document.getElementById('btn-restart').addEventListener('click', () => {
+
+  btnReserve.addEventListener("click", attemptReserve);
+
+  modalCloseEls.forEach((el) => el.addEventListener("click", closeModal));
+  modal.addEventListener("click", (e) => {
+    if (e.target && e.target.hasAttribute("data-modal-close")) closeModal();
+  });
+
+  document.getElementById("btn-restart").addEventListener("click", () => {
     selectedDateId = null;
     selectedSeatIds = new Set();
     switchScreen(screens.start);
   });
+
+  // init
+  tickConcurrency();
+  concTimer = setInterval(tickConcurrency, CONC_STEP_MS);
+  scheduleSpike();
 })();
