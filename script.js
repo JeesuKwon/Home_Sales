@@ -295,7 +295,7 @@
       else if (failStreak === 2) applyCooldown(rand(6000,10000));
       else applyCooldown(rand(2000,4000));
 
-      showModal('Overloaded traffic. Your reservation failed. Please try again.');
+      showModal('Someone else has reserved those seats. Please review your selection and try again.');
       return;
     }
 
