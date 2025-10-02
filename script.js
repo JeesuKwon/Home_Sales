@@ -119,7 +119,7 @@
   function updateSelectionUI() {
     const count = selectedSeatIds.size;
     selectedCountEl.textContent = String(count);
-    btnReserve.disabled = count === 0 || cooling;
+    btnReserve.disabled = count === 0;
   }
   function showModal(message) {
     modalMessage.textContent = message;
@@ -131,9 +131,7 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
-  // ===== Hard mode: concurrency + surge + rate limit + streak penalty =====
-
-  // 0) 배너가 없으면 생성
+  // ===== Concurrency banner (auto-create if missing) =====
   let banner = document.getElementById('concurrency-banner');
   if (!banner) {
     banner = document.createElement('div');
@@ -150,11 +148,10 @@
     banner.style.color = '#ffd166';
     banner.style.borderBottom = '8px solid #101317';
     document.body.prepend(banner);
-    // 본문 내려줌
     document.body.style.paddingTop = (parseInt(getComputedStyle(document.body).paddingTop || 0,10) + 56) + 'px';
   }
 
-  // 1) 동시 접속자 시뮬레이션
+  // ===== High-fail difficulty (no cooldown, no rate-limit) =====
   let concurrency = Math.floor(80000 + Math.random()*40000);
   function stepConcurrency(){
     const pct = 0.005 + Math.random()*0.01;
@@ -164,71 +161,26 @@
   }
   setInterval(stepConcurrency, 1000); stepConcurrency();
 
-  // 2) 간헐적 과부하 서지
+  const BASE_FAIL = 0.90;             // 기본 90% 실패
+  const CONC_FACTOR = 0.6 / 40000;    // 동접 가중
+  const MAX_FAIL = 0.995;             // 상한
+  let failStreak = 0;                  // 메시지·연출용 누적만 사용
+
+  // 간헐 과부하(+10%) 가끔
   let surgeBoost = 0;
   (function scheduleSurge(){
     setTimeout(()=>{
-      surgeBoost = 0.10; // +10%
-      setTimeout(()=>{ surgeBoost = 0; scheduleSurge(); }, rand(5000,10000)); // 5~10s
-    }, rand(15000,30000)); // 15~30s
+      surgeBoost = 0.10;
+      setTimeout(()=>{ surgeBoost = 0; scheduleSurge(); }, rand(5000,10000));
+    }, rand(15000,30000));
   })();
-
-  // 3) 분당 시도 제한
-  const ATTEMPTS_PER_MIN = 6;
-  const attempts = [];
-  function canAttempt(){
-    const now = Date.now();
-    while(attempts.length && now - attempts[0] > 60000) attempts.shift();
-    return attempts.length < ATTEMPTS_PER_MIN;
-  }
-  function markAttempt(){ attempts.push(Date.now()); }
-
-  // 4) 실패확률 구성요소
-  const BASE_FAIL = 0.85;             // 기본 85%
-  const CONC_FACTOR = 0.6 / 40000;    // 동접 가중
-  const MAX_FAIL = 0.995;             // 상한
-  let failStreak = 0;
-  let cooling = false;
-  let cooldownTimer = null;
 
   function getFailProb(){
     const concPart = concurrency * CONC_FACTOR;
-    const streakPart = Math.min(failStreak, 4) * 0.05; // 최대 +0.20
-    // 선택 좌석이 많으면 추가 패널티(+0~0.10)
-    const seatPart = Math.min(selectedSeatIds.size * 0.02, 0.10);
-    return clamp(BASE_FAIL + concPart + surgeBoost + streakPart + seatPart, BASE_FAIL, MAX_FAIL);
+    const seatPart = Math.min(selectedSeatIds.size * 0.02, 0.10); // 좌석 많이 잡을수록 더 어려움
+    return clamp(BASE_FAIL + concPart + surgeBoost + seatPart, BASE_FAIL, MAX_FAIL);
   }
 
-  function applyCooldown(ms){
-    cooling = true;
-    let left = Math.ceil(ms/1000);
-    btnReserve.disabled = true;
-    btnReserve.classList.add('is-cooling');
-    const original = btnReserve.textContent;
-    btnReserve.textContent = `Cooling ${left}s`;
-    clearInterval(cooldownTimer);
-    cooldownTimer = setInterval(()=>{
-      left--;
-      btnReserve.textContent = `Cooling ${left}s`;
-      if(left<=0){
-        clearInterval(cooldownTimer);
-        btnReserve.disabled = selectedSeatIds.size===0;
-        btnReserve.classList.remove('is-cooling');
-        btnReserve.textContent = original;
-        cooling = false;
-      }
-    },1000);
-  }
-
-  // 5) 가짜 대기열 토큰(10% 실패)
-  function acquireToken(){
-    return new Promise((resolve)=>{
-      const delay = rand(70,1500);
-      setTimeout(()=> resolve(Math.random() >= 0.10), delay);
-    });
-  }
-
-  // ===== 예약 시도 =====
   function formatDateLabel(dateId) {
     const d = DATES.find((x) => x.id === dateId);
     return d ? d.label : dateId;
@@ -245,44 +197,19 @@
     if (!selectedDateId || selectedSeatIds.size === 0) return;
     const takenSet = ensureDateTakenSet(selectedDateId);
 
-    if (cooling) return;
-    if (!canAttempt()){
-      applyCooldown(10000); // 분당 제한 초과
-      showModal('Too many attempts. Please wait a moment.');
-      return;
-    }
-    markAttempt();
-
-    // 토큰 획득 실패 시 즉시 실패
-    const tokenOK = await acquireToken();
-    if (!tokenOK) {
-      failStreak++;
-      // 일부 좌석을 남에게 뺏기도록
-      const selected = Array.from(selectedSeatIds);
-      const toTakeCount = Math.max(1, Math.floor(selected.length * (0.4 + Math.random() * 0.4)));
-      shuffleArray(selected);
-      for (let i = 0; i < toTakeCount; i++) {
-        takenSet.add(selected[i]);
-        selectedSeatIds.delete(selected[i]);
-      }
-      renderSeatMap(); updateSelectionUI();
-      applyCooldown(rand(2000,4000));
-      showModal('Queue token failed. High traffic. Try again.');
-      return;
-    }
-
-    // 동시접속 기반 실패
+    // 실패 확률 계산
     const failChance = getFailProb();
     const didFail = Math.random() < failChance;
 
-    // 경합으로 인해 좌석이 이미 선점된 경우 강제 실패
+    // 경합으로 이미 선점된 좌석이 있으면 강제 실패
     let raceTaken = false;
     selectedSeatIds.forEach((id) => { if (takenSet.has(id)) raceTaken = true; });
 
     if (didFail || raceTaken) {
       failStreak++;
+      // 일부 좌석을 남에게 뺏기도록
       const selected = Array.from(selectedSeatIds);
-      const toTakeCount = Math.max(1, Math.floor(selected.length * (0.4 + Math.random() * 0.4)));
+      const toTakeCount = Math.max(1, Math.floor(selected.length * (0.4 + Math.random() * 0.4))); // 40~80%
       shuffleArray(selected);
       for (let i = 0; i < toTakeCount; i++) {
         takenSet.add(selected[i]);
@@ -290,12 +217,8 @@
       }
       renderSeatMap(); updateSelectionUI();
 
-      // 연속 실패 수에 따라 쿨다운 강화
-      if (failStreak >= 3) applyCooldown(rand(12000,20000));
-      else if (failStreak === 2) applyCooldown(rand(6000,10000));
-      else applyCooldown(rand(2000,4000));
-
-      showModal('Someone else has reserved those seats. Please review your selection and try again.');
+      // 고정 실패 문구
+      showModal('Someone else has reserved those seats. Please review your selection and try again');
       return;
     }
 
