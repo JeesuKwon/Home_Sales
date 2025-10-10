@@ -10,27 +10,22 @@
     { id: "2025-03-03", label: "March 3" },
   ];
 
-  // 난이도: 최종 성공률 = BASE_SUCCESS + SUCCESS_BONUS - 페널티들
-  const BASE_SUCCESS = 0.30;
-  const SUCCESS_BONUS = 0.10;
-  const MAX_SUCCESS = 0.95;
-  const MIN_SUCCESS = 0.02;
+  // 난이도 조정 (더 어렵게)
+  const BASE_SUCCESS = 0.20;     // 기본 성공률 20%
+  const SUCCESS_BONUS = 0.05;    // 보너스 5%
+  const MAX_SUCCESS = 0.85;      // 최대 85%
+  const MIN_SUCCESS = 0.02;      // 최소 2%
 
-  // 사전 선점 좌석 비율
-  const PRETAKEN_MIN = 0.15;
-  const PRETAKEN_MAX = 0.25;
+  const PRETAKEN_MIN = 0.20;
+  const PRETAKEN_MAX = 0.35;
 
-  // 동시접속 시뮬레이션
   const CONC_MIN = 3000;
   const CONC_MAX = 60000;
   const CONC_STEP_MS = 1000;
 
-  // 실패 시 일부 좌석을 빼앗기는 비율 범위
-  const STEAL_RATIO_MIN = 0.4;
-  const STEAL_RATIO_MAX = 0.8;
-
-  // “경쟁 때문에 빼앗김” 연출 확률(실패로 판정된 경우에만 적용)
-  const RACE_STEAL_PROB = 0.7;
+  const STEAL_RATIO_MIN = 0.5;
+  const STEAL_RATIO_MAX = 0.9;
+  const RACE_STEAL_PROB = 0.8;
 
   /* =========================
    * DOM
@@ -53,7 +48,7 @@
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
   /* =========================
-   * Global font: Noto Sans
+   * Global font
    * ========================= */
   (function applyNotoSans() {
     const link = document.createElement("link");
@@ -71,10 +66,9 @@
    * State
    * ========================= */
   let selectedDateId = null;
-  const dateIdToTakenSet = new Map(); // dateId -> Set<seatId>
+  const dateIdToTakenSet = new Map();
   let selectedSeatIds = new Set();
 
-  // 동시접속 시뮬레이션
   let concurrency = randInt(CONC_MIN, CONC_MAX);
   let concTimer = null;
 
@@ -96,7 +90,7 @@
   }
 
   /* =========================
-   * Pre-taken seats per date
+   * Pre-taken seats
    * ========================= */
   function pickRandomTakenSeats(totalSeats) {
     const takenRatio = rand(PRETAKEN_MIN, PRETAKEN_MAX);
@@ -208,23 +202,28 @@
   }
 
   /* =========================
-   * Concurrency banner
+   * Concurrency banner (bigger font)
    * ========================= */
   let banner = document.getElementById("concurrency-banner");
   if (!banner) {
     banner = document.createElement("div");
     banner.id = "concurrency-banner";
     banner.setAttribute("aria-live", "polite");
-    banner.style.position = "fixed";
-    banner.style.top = "0";
-    banner.style.left = "0";
-    banner.style.right = "0";
-    banner.style.padding = "12px 16px";
-    banner.style.textAlign = "center";
-    banner.style.zIndex = "9999";
-    banner.style.background = "#2a2f36";
-    banner.style.color = "#ffd166";
-    banner.style.borderBottom = "8px solid #101317";
+    Object.assign(banner.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      right: "0",
+      padding: "14px 16px",
+      textAlign: "center",
+      zIndex: "9999",
+      background: "#2a2f36",
+      color: "#ffd166",
+      borderBottom: "8px solid #101317",
+      fontSize: "22px",
+      fontWeight: "800",
+      letterSpacing: "0.5px",
+    });
     document.body.prepend(banner);
     document.body.style.paddingTop =
       (parseInt(getComputedStyle(document.body).paddingTop || 0, 10) + 56) + "px";
@@ -238,25 +237,24 @@
   }
 
   /* =========================
-   * Success probability model
+   * Success model
    * ========================= */
   function currentSuccessProb() {
     const concNorm = (concurrency - CONC_MIN) / (CONC_MAX - CONC_MIN);
-    const concPenalty = 0.25 * clamp(concNorm, 0, 1);
-    const seatPenalty = Math.min(selectedSeatIds.size * 0.03, 0.10);
-    const spikePenalty = spikeActive ? 0.15 : 0;
+    const concPenalty = 0.3 * clamp(concNorm, 0, 1);
+    const seatPenalty = Math.min(selectedSeatIds.size * 0.04, 0.12);
+    const spikePenalty = spikeActive ? 0.2 : 0;
 
     const raw = BASE_SUCCESS + SUCCESS_BONUS - concPenalty - seatPenalty - spikePenalty;
     return clamp(raw, MIN_SUCCESS, MAX_SUCCESS);
   }
 
-  // 간헐적 스파이크
   let spikeActive = false;
   function scheduleSpike() {
-    const nextIn = randInt(12000, 22000);
+    const nextIn = randInt(10000, 20000);
     setTimeout(() => {
       spikeActive = true;
-      setTimeout(() => { spikeActive = false; scheduleSpike(); }, randInt(3000, 7000));
+      setTimeout(() => { spikeActive = false; scheduleSpike(); }, randInt(2000, 6000));
     }, nextIn);
   }
 
@@ -297,52 +295,33 @@
     const p = currentSuccessProb();
     const win = Math.random() < p;
 
-    if (win) {
-      commitReservation(takenSet);
-      return;
-    }
-    failReservation(takenSet);
+    if (win) commitReservation(takenSet);
+    else failReservation(takenSet);
   }
 
   /* =========================
-   * Hero banner on date screen (full-image, single instance)
+   * Hero banner (start + date screens)
    * ========================= */
-  function addHeroBannerOnce() {
-    // 기존 중복 모두 제거 후 하나만 유지
-    document.querySelectorAll("#hero-banner").forEach((el, i) => { if (i > 0) el.remove(); });
-    if (document.getElementById("hero-banner")) return;
-
-    const ID = "13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D";
-    const CANDIDATES = [
-      `https://lh3.googleusercontent.com/d/${ID}=w1600`,
-      `https://drive.google.com/thumbnail?id=${ID}&sz=w1600`,
-      `https://drive.google.com/uc?export=view&id=${ID}`,
-    ];
+  function addHeroBanner(screen) {
+    if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
 
     const hero = document.createElement("img");
     hero.id = "hero-banner";
+    hero.src = "https://lh3.googleusercontent.com/d/13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D=w1600";
     hero.alt = "K-pop Demon Traffic Hunters";
     hero.referrerPolicy = "no-referrer";
-    hero.decoding = "async";
     hero.loading = "eager";
     Object.assign(hero.style, {
       width: "100%",
       maxWidth: "980px",
-      height: "auto",        // 전체 이미지 표시
+      height: "auto",
       display: "block",
       margin: "24px auto 12px",
       borderRadius: "16px",
       boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
-      // objectFit/aspectRatio 미사용 → 크롭 없이 원본 비율 그대로
     });
 
-    let i = 0;
-    hero.src = CANDIDATES[i];
-    hero.onerror = () => { if (++i < CANDIDATES.length) hero.src = CANDIDATES[i]; };
-
-    const host = screens.date;
-    const anchor = dateList.parentElement || dateList;
-    host.insertBefore(hero, anchor);
+    screen.insertBefore(hero, screen.firstChild);
   }
 
   /* =========================
@@ -351,7 +330,7 @@
   btnOpen.addEventListener("click", () => {
     renderDateButtons();
     switchScreen(screens.date);
-    addHeroBannerOnce(); // 날짜 화면 진입 시 한 번만
+    addHeroBanner(screens.date);
   });
 
   btnReserve.addEventListener("click", attemptReserve);
@@ -365,10 +344,12 @@
     selectedDateId = null;
     selectedSeatIds = new Set();
     switchScreen(screens.start);
+    addHeroBanner(screens.start);
   });
 
   // init
   tickConcurrency();
   concTimer = setInterval(tickConcurrency, CONC_STEP_MS);
   scheduleSpike();
+  addHeroBanner(screens.start); // 첫 화면에서도 배너 표시
 })();
