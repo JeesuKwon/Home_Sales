@@ -53,6 +53,21 @@
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
   /* =========================
+   * Global font: Noto Sans
+   * ========================= */
+  (function applyNotoSans() {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800;900&display=swap";
+    document.head.appendChild(link);
+
+    const style = document.createElement("style");
+    style.textContent =
+      "*{font-family:'Noto Sans',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif !important;}";
+    document.head.appendChild(style);
+  })();
+
+  /* =========================
    * State
    * ========================= */
   let selectedDateId = null;
@@ -216,7 +231,6 @@
   }
 
   function tickConcurrency() {
-    // 부드러운 랜덤 워크
     const pct = rand(0.005, 0.02);
     const dir = Math.random() < 0.5 ? -1 : 1;
     concurrency = clamp(Math.floor(concurrency * (1 + dir * pct)), CONC_MIN, CONC_MAX);
@@ -227,14 +241,9 @@
    * Success probability model
    * ========================= */
   function currentSuccessProb() {
-    // 동접 영향: 0 ~ 0.25p 성공률 감소
-    const concNorm = (concurrency - CONC_MIN) / (CONC_MAX - CONC_MIN); // 0~1
+    const concNorm = (concurrency - CONC_MIN) / (CONC_MAX - CONC_MIN);
     const concPenalty = 0.25 * clamp(concNorm, 0, 1);
-
-    // 선택 좌석 수 영향: 최대 0.10p 성공률 감소
     const seatPenalty = Math.min(selectedSeatIds.size * 0.03, 0.10);
-
-    // 드문 과부하 스파이크: 0 ~ 0.15p 성공률 감소
     const spikePenalty = spikeActive ? 0.15 : 0;
 
     const raw = BASE_SUCCESS + SUCCESS_BONUS - concPenalty - seatPenalty - spikePenalty;
@@ -270,7 +279,6 @@
   }
 
   function failReservation(takenSet) {
-    // 실패 시 일부 좌석이 경쟁자에게 빼앗긴 것으로 처리
     if (Math.random() < RACE_STEAL_PROB && selectedSeatIds.size > 0) {
       const selected = shuffleArray(Array.from(selectedSeatIds));
       const stealCnt = Math.max(1, Math.floor(selected.length * rand(STEAL_RATIO_MIN, STEAL_RATIO_MAX)));
@@ -285,10 +293,7 @@
 
   function attemptReserve() {
     if (!selectedDateId || selectedSeatIds.size === 0) return;
-
     const takenSet = ensureDateTakenSet(selectedDateId);
-
-    // 1) 성공 판정 먼저 → 성공이면 바로 커밋
     const p = currentSuccessProb();
     const win = Math.random() < p;
 
@@ -296,10 +301,34 @@
       commitReservation(takenSet);
       return;
     }
-
-    // 2) 실패 처리
     failReservation(takenSet);
   }
+
+  /* =========================
+   * Hero banner on date screen
+   * ========================= */
+  (function addHeroBanner(){
+    const src = "https://drive.google.com/uc?id=13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D"; // 변환된 Drive URL
+    const hero = document.createElement("img");
+    hero.id = "hero-banner";
+    hero.src = src;
+    hero.alt = "K-pop Demon Traffic Hunters";
+    hero.loading = "eager";
+    Object.assign(hero.style, {
+      width: "100%",
+      maxWidth: "980px",
+      aspectRatio: "16/6",
+      objectFit: "cover",
+      display: "block",
+      margin: "24px auto 12px",
+      borderRadius: "16px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
+    });
+
+    const host = screens.date;
+    const anchor = dateList.parentElement || dateList;
+    host.insertBefore(hero, anchor); // 날짜 박스 위
+  })();
 
   /* =========================
    * Wiring
