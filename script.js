@@ -11,10 +11,10 @@
   ];
 
   // 난이도: 최종 성공률 = BASE_SUCCESS + SUCCESS_BONUS - 페널티들
-  const BASE_SUCCESS = 0.30;     // 기본 성공률 30%
-  const SUCCESS_BONUS = 0.10;    // +10%p → 기본 40% 체감
-  const MAX_SUCCESS = 0.95;      // 너무 쉬워지는 것 방지
-  const MIN_SUCCESS = 0.02;      // 너무 어려운 것 방지
+  const BASE_SUCCESS = 0.30;
+  const SUCCESS_BONUS = 0.10;
+  const MAX_SUCCESS = 0.95;
+  const MIN_SUCCESS = 0.02;
 
   // 사전 선점 좌석 비율
   const PRETAKEN_MIN = 0.15;
@@ -305,30 +305,45 @@
   }
 
   /* =========================
-   * Hero banner on date screen
+   * Hero banner on date screen (full-image, single instance)
    * ========================= */
-  (function addHeroBanner(){
-    const src = "https://lh3.googleusercontent.com/d/13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D=w1600"; // 변환된 Drive URL
+  function addHeroBannerOnce() {
+    // 기존 중복 모두 제거 후 하나만 유지
+    document.querySelectorAll("#hero-banner").forEach((el, i) => { if (i > 0) el.remove(); });
+    if (document.getElementById("hero-banner")) return;
+
+    const ID = "13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D";
+    const CANDIDATES = [
+      `https://lh3.googleusercontent.com/d/${ID}=w1600`,
+      `https://drive.google.com/thumbnail?id=${ID}&sz=w1600`,
+      `https://drive.google.com/uc?export=view&id=${ID}`,
+    ];
+
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = src;
     hero.alt = "K-pop Demon Traffic Hunters";
+    hero.referrerPolicy = "no-referrer";
+    hero.decoding = "async";
     hero.loading = "eager";
     Object.assign(hero.style, {
       width: "100%",
       maxWidth: "980px",
-      aspectRatio: "16/6",
-      objectFit: "cover",
+      height: "auto",        // 전체 이미지 표시
       display: "block",
       margin: "24px auto 12px",
       borderRadius: "16px",
       boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
+      // objectFit/aspectRatio 미사용 → 크롭 없이 원본 비율 그대로
     });
+
+    let i = 0;
+    hero.src = CANDIDATES[i];
+    hero.onerror = () => { if (++i < CANDIDATES.length) hero.src = CANDIDATES[i]; };
 
     const host = screens.date;
     const anchor = dateList.parentElement || dateList;
-    host.insertBefore(hero, anchor); // 날짜 박스 위
-  })();
+    host.insertBefore(hero, anchor);
+  }
 
   /* =========================
    * Wiring
@@ -336,6 +351,7 @@
   btnOpen.addEventListener("click", () => {
     renderDateButtons();
     switchScreen(screens.date);
+    addHeroBannerOnce(); // 날짜 화면 진입 시 한 번만
   });
 
   btnReserve.addEventListener("click", attemptReserve);
