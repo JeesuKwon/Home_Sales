@@ -308,7 +308,7 @@
    * Hero banner on date screen
    * ========================= */
   (function addHeroBanner(){
-    const src = "https://drive.google.com/uc?id=13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D"; // 변환된 Drive URL
+    const src = "https://lh3.googleusercontent.com/d/13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D=w1600"; // 변환된 Drive URL
     const hero = document.createElement("img");
     hero.id = "hero-banner";
     hero.src = src;
