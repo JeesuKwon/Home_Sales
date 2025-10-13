@@ -309,7 +309,7 @@
 
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+    hero.src = "https://drive.usercontent.google.com/download?id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ&export=view&authuser=2";
     hero.alt = "K-pop Demon Traffic Hunters";
     hero.referrerPolicy = "no-referrer";
     hero.loading = "eager";
