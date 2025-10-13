@@ -307,12 +307,19 @@
   function addHeroBanner(screen) {
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
 
+    const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+    const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
+    const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
+
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = "https://drive.usercontent.google.com/download?id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ&export=view&authuser=2";
+    hero.src = primary;
     hero.alt = "K-pop Demon Traffic Hunters";
     hero.referrerPolicy = "no-referrer";
+    hero.decoding = "async";
     hero.loading = "eager";
+    hero.onerror = () => { if (hero.src !== fallback) hero.src = fallback; };
+
     Object.assign(hero.style, {
       width: "100%",
       maxWidth: "980px",
