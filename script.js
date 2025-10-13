@@ -5,16 +5,16 @@
   const ROWS = 10;
   const COLS = 12;
   const DATES = [
-    { id: "2025-03-01", label: "March 1" },
-    { id: "2025-03-02", label: "March 2" },
-    { id: "2025-03-03", label: "March 3" },
+    { id: "2025-12-23", label: "12/23" },
+    { id: "2025-12-24", label: "12/24" },
+    { id: "2025-12-25", label: "12/25" },
   ];
 
   // 난이도 조정 (더 어렵게)
-  const BASE_SUCCESS = 0.20;     // 기본 성공률 20%
-  const SUCCESS_BONUS = 0.05;    // 보너스 5%
-  const MAX_SUCCESS = 0.85;      // 최대 85%
-  const MIN_SUCCESS = 0.02;      // 최소 2%
+  const BASE_SUCCESS = 0.20;
+  const SUCCESS_BONUS = 0.05;
+  const MAX_SUCCESS = 0.85;
+  const MIN_SUCCESS = 0.02;
 
   const PRETAKEN_MIN = 0.20;
   const PRETAKEN_MAX = 0.35;
@@ -202,7 +202,7 @@
   }
 
   /* =========================
-   * Concurrency banner (bigger font)
+   * Concurrency banner
    * ========================= */
   let banner = document.getElementById("concurrency-banner");
   if (!banner) {
@@ -272,7 +272,8 @@
     confirmedSeatsEl.textContent =
       `Reserved seats for ${formatDateLabel(selectedDateId)}: ${reserved.join(", ")}`;
     selectedSeatIds.clear();
-    renderSeatMap(); updateSelectionUI();
+    renderSeatMap();
+    updateSelectionUI();
     switchScreen(screens.confirmation);
   }
 
@@ -284,7 +285,8 @@
         takenSet.add(selected[i]);
         selectedSeatIds.delete(selected[i]);
       }
-      renderSeatMap(); updateSelectionUI();
+      renderSeatMap();
+      updateSelectionUI();
     }
     showModal("Someone else has reserved those seats. Please review your selection and try again");
   }
@@ -307,7 +309,7 @@
 
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = "https://lh3.googleusercontent.com/d/13YrCARb40w23_FA_SGxlYeAHzyJ1_e7D=w1600";
+    hero.src = "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
     hero.alt = "K-pop Demon Traffic Hunters";
     hero.referrerPolicy = "no-referrer";
     hero.loading = "eager";
@@ -351,5 +353,5 @@
   tickConcurrency();
   concTimer = setInterval(tickConcurrency, CONC_STEP_MS);
   scheduleSpike();
-  addHeroBanner(screens.start); // 첫 화면에서도 배너 표시
+  addHeroBanner(screens.start);
 })();
