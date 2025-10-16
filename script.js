@@ -310,12 +310,12 @@ if (attemptCount >= MAX_ATTEMPTS) {
   attemptCount = 0;
 
   // 3초 후 자동으로 첫 화면으로 복귀
-  setTimeout(() => {
+  
     selectedDateId = null;
     selectedSeatIds = new Set();
     switchScreen(screens.start);
     addHeroBanner(screens.start);
-  }, 3000);
+
 } else {
   showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
 }
