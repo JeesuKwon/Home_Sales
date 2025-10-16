@@ -10,7 +10,7 @@
     { id: "2025-12-25", label: "25, Dec" },
   ];
 
-  // 난이도 조정 (더 어렵게)
+  // 난이도 조정
   const BASE_SUCCESS = 0.20;
   const SUCCESS_BONUS = 0.05;
   const MAX_SUCCESS = 0.85;
@@ -194,8 +194,17 @@
     btnReserve.disabled = count === 0;
   }
 
-  function showModal(message) {
-    modalMessage.textContent = message;
+  /* =========================
+   * Modal with image support
+   * ========================= */
+  function showModal(message, imgSrc = null) {
+    modalMessage.innerHTML = imgSrc
+      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+           <img src="${imgSrc}" alt="Result Image" 
+                style="width:220px;height:auto;border-radius:12px;object-fit:cover;">
+           <div style="font-size:20px;font-weight:700;color:#fff;text-align:center;">${message}</div>
+         </div>`
+      : `<div style="font-size:20px;font-weight:700;color:#fff;text-align:center;">${message}</div>`;
     modal.classList.add("modal--open");
     modal.setAttribute("aria-hidden", "false");
   }
@@ -263,7 +272,7 @@
   }
 
   /* =========================
-   * Reservation flow (수정됨)
+   * Reservation flow
    * ========================= */
   function formatDateLabel(dateId) {
     const d = DATES.find((x) => x.id === dateId);
@@ -310,7 +319,8 @@
     } else {
       failReservation(takenSet);
       if (attemptCount >= MAX_ATTEMPTS) {
-        showModal("💀 You failed, Bots already occupied every seat");
+        showModal("💀 You failed, Bots already occupied every seat", 
+                  "https://reactiongifs.com/r/2013/03/failed.gif");
         attemptCount = 0;
       } else {
         showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
