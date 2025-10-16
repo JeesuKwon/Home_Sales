@@ -10,7 +10,6 @@
     { id: "2025-12-25", label: "25, Dec" },
   ];
 
-  // 난이도 조정
   const BASE_SUCCESS = 0.20;
   const SUCCESS_BONUS = 0.05;
   const MAX_SUCCESS = 0.85;
@@ -47,9 +46,6 @@
   const modalMessage = document.getElementById("modal-message");
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
-  /* =========================
-   * Global font
-   * ========================= */
   (function applyNotoSans() {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -72,7 +68,6 @@
   let concurrency = randInt(CONC_MIN, CONC_MAX);
   let concTimer = null;
 
-  // 추가: 시도 횟수 제한
   let attemptCount = 0;
   const MAX_ATTEMPTS = 3;
 
@@ -84,7 +79,6 @@
   function randInt(a, b) { return Math.floor(rand(a, b)); }
   function alphaForRow(i) { return String.fromCharCode("A".charCodeAt(0) + i); }
   function seatId(r, c) { return `${alphaForRow(r)}${c + 1}`; }
-
   function shuffleArray(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -147,7 +141,6 @@
     const takenSet = ensureDateTakenSet(selectedDateId);
     seatMap.innerHTML = "";
     seatMap.setAttribute("role", "grid");
-
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const id = seatId(r, c);
@@ -158,12 +151,9 @@
         seat.className = "seat " + (isTaken ? "seat--taken" : isSelected ? "seat--selected" : "seat--available");
         seat.type = "button";
         seat.dataset.seatId = id;
-        seat.setAttribute("aria-label", `Seat ${id}`);
-        seat.setAttribute("role", "gridcell");
         seat.textContent = id;
 
         if (isTaken) {
-          seat.setAttribute("aria-disabled", "true");
           seat.disabled = true;
         }
 
@@ -176,12 +166,9 @@
   function onSeatClick(id) {
     const takenSet = ensureDateTakenSet(selectedDateId);
     if (takenSet.has(id)) return;
-
     if (selectedSeatIds.has(id)) selectedSeatIds.delete(id);
     else selectedSeatIds.add(id);
-
     updateSelectionUI();
-
     const el = seatMap.querySelector(`[data-seat-id="${id}"]`);
     if (!el) return;
     el.classList.toggle("seat--selected");
@@ -195,16 +182,16 @@
   }
 
   /* =========================
-   * Modal with image support
+   * Modal with images
    * ========================= */
   function showModal(message, imgSrc = null) {
     modalMessage.innerHTML = imgSrc
-      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-           <img src="${imgSrc}" alt="Result Image" 
-                style="width:220px;height:auto;border-radius:12px;object-fit:cover;">
-           <div style="font-size:20px;font-weight:700;color:#fff;text-align:center;">${message}</div>
+      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+           <img src="${imgSrc}" alt="Result Image"
+                style="width:320px;max-width:90%;height:auto;border-radius:12px;object-fit:cover;">
+           <div style="font-size:22px;font-weight:800;color:#fff;text-align:center;">${message}</div>
          </div>`
-      : `<div style="font-size:20px;font-weight:700;color:#fff;text-align:center;">${message}</div>`;
+      : `<div style="font-size:22px;font-weight:800;color:#fff;text-align:center;">${message}</div>`;
     modal.classList.add("modal--open");
     modal.setAttribute("aria-hidden", "false");
   }
@@ -257,7 +244,6 @@
     const concPenalty = 0.3 * clamp(concNorm, 0, 1);
     const seatPenalty = Math.min(selectedSeatIds.size * 0.04, 0.12);
     const spikePenalty = spikeActive ? 0.2 : 0;
-
     const raw = BASE_SUCCESS + SUCCESS_BONUS - concPenalty - seatPenalty - spikePenalty;
     return clamp(raw, MIN_SUCCESS, MAX_SUCCESS);
   }
@@ -306,21 +292,21 @@
   function attemptReserve() {
     if (!selectedDateId || selectedSeatIds.size === 0) return;
     const takenSet = ensureDateTakenSet(selectedDateId);
-
     attemptCount++;
     const p = currentSuccessProb();
     const win = Math.random() < p;
 
     if (win) {
       commitReservation(takenSet);
-      showModal("🎉 Conglaturation!!");
+      showModal("🎉 Conglaturation!!",
+        "https://media0.giphy.com/media/v1.Y2lkPTZjMDliOTUyY2duNTFnOGpocGgyenhwaWR0dWY4NHJ6cjRndXE3ZWg1cmw4aWdmbSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oz9ZE2Oo9zRC/source.gif");
       attemptCount = 0;
       return;
     } else {
       failReservation(takenSet);
       if (attemptCount >= MAX_ATTEMPTS) {
-        showModal("💀 You failed, Bots already occupied every seat", 
-                  "https://reactiongifs.com/r/2013/03/failed.gif");
+        showModal("💀 You failed, Bots already occupied every seat",
+          "https://reactiongifs.com/r/2013/03/failed.gif");
         attemptCount = 0;
       } else {
         showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
@@ -333,20 +319,14 @@
    * ========================= */
   function addHeroBanner(screen) {
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
-
     const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
     const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
     const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
-
     const hero = document.createElement("img");
     hero.id = "hero-banner";
     hero.src = primary;
     hero.alt = "K-pop Demon Traffic Hunters";
-    hero.referrerPolicy = "no-referrer";
-    hero.decoding = "async";
-    hero.loading = "eager";
     hero.onerror = () => { if (hero.src !== fallback) hero.src = fallback; };
-
     Object.assign(hero.style, {
       width: "100%",
       maxWidth: "980px",
@@ -356,7 +336,6 @@
       borderRadius: "16px",
       boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
     });
-
     screen.insertBefore(hero, screen.firstChild);
   }
 
@@ -370,12 +349,10 @@
   });
 
   btnReserve.addEventListener("click", attemptReserve);
-
   modalCloseEls.forEach((el) => el.addEventListener("click", closeModal));
   modal.addEventListener("click", (e) => {
     if (e.target && e.target.hasAttribute("data-modal-close")) closeModal();
   });
-
   document.getElementById("btn-restart").addEventListener("click", () => {
     selectedDateId = null;
     selectedSeatIds = new Set();
