@@ -72,6 +72,10 @@
   let concurrency = randInt(CONC_MIN, CONC_MAX);
   let concTimer = null;
 
+  // 추가: 시도 횟수 제한
+  let attemptCount = 0;
+  const MAX_ATTEMPTS = 3;
+
   /* =========================
    * Utils
    * ========================= */
@@ -259,7 +263,7 @@
   }
 
   /* =========================
-   * Reservation flow
+   * Reservation flow (수정됨)
    * ========================= */
   function formatDateLabel(dateId) {
     const d = DATES.find((x) => x.id === dateId);
@@ -288,21 +292,34 @@
       renderSeatMap();
       updateSelectionUI();
     }
-    showModal("Someone else has reserved those seats. Please review your selection and try again");
   }
 
   function attemptReserve() {
     if (!selectedDateId || selectedSeatIds.size === 0) return;
     const takenSet = ensureDateTakenSet(selectedDateId);
+
+    attemptCount++;
     const p = currentSuccessProb();
     const win = Math.random() < p;
 
-    if (win) commitReservation(takenSet);
-    else failReservation(takenSet);
+    if (win) {
+      commitReservation(takenSet);
+      showModal("🎉 Conglaturation!!");
+      attemptCount = 0;
+      return;
+    } else {
+      failReservation(takenSet);
+      if (attemptCount >= MAX_ATTEMPTS) {
+        showModal("💀 You failed, Bots already occupied every seat");
+        attemptCount = 0;
+      } else {
+        showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
+      }
+    }
   }
 
   /* =========================
-   * Hero banner (start + date screens)
+   * Hero banner
    * ========================= */
   function addHeroBanner(screen) {
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
@@ -352,6 +369,7 @@
   document.getElementById("btn-restart").addEventListener("click", () => {
     selectedDateId = null;
     selectedSeatIds = new Set();
+    attemptCount = 0;
     switchScreen(screens.start);
     addHeroBanner(screens.start);
   });
