@@ -304,13 +304,21 @@
       return;
     } else {
       failReservation(takenSet);
-      if (attemptCount >= MAX_ATTEMPTS) {
-        showModal("💀 You failed, Bots already occupied every seat",
-          "https://reactiongifs.com/r/2013/03/failed.gif");
-        attemptCount = 0;
-      } else {
-        showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
-      }
+if (attemptCount >= MAX_ATTEMPTS) {
+  showModal("💀 You failed, Bots already occupied every seat",
+    "https://reactiongifs.com/r/2013/03/failed.gif");
+  attemptCount = 0;
+
+  // 3초 후 자동으로 첫 화면으로 복귀
+  setTimeout(() => {
+    selectedDateId = null;
+    selectedSeatIds = new Set();
+    switchScreen(screens.start);
+    addHeroBanner(screens.start);
+  }, 3000);
+} else {
+  showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
+}
     }
   }
 
