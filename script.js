@@ -26,9 +26,6 @@
   const STEAL_RATIO_MAX = 0.9;
   const RACE_STEAL_PROB = 0.8;
 
-  const MAX_ATTEMPTS = 3;
-  const RESERVE_TIME_LIMIT = 10; // 초 제한
-
   /* =========================
    * DOM
    * ========================= */
@@ -49,15 +46,16 @@
   const modalMessage = document.getElementById("modal-message");
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
-  let timerDisplay = null;
-  let timer = null;
-  let timeLeft = RESERVE_TIME_LIMIT;
-
   (function applyNotoSans() {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800;900&display=swap";
     document.head.appendChild(link);
+
+    const style = document.createElement("style");
+    style.textContent =
+      "*{font-family:'Noto Sans',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif !important;}";
+    document.head.appendChild(style);
   })();
 
   /* =========================
@@ -66,9 +64,12 @@
   let selectedDateId = null;
   const dateIdToTakenSet = new Map();
   let selectedSeatIds = new Set();
+
   let concurrency = randInt(CONC_MIN, CONC_MAX);
   let concTimer = null;
+
   let attemptCount = 0;
+  const MAX_ATTEMPTS = 3;
 
   /* =========================
    * Utils
@@ -130,7 +131,6 @@
         selectedSeatIds = new Set();
         renderSeatMap();
         updateSelectionUI();
-        startTimer(); // 타이머 시작
         switchScreen(screens.seat);
       });
       dateList.appendChild(btn);
@@ -141,7 +141,6 @@
     const takenSet = ensureDateTakenSet(selectedDateId);
     seatMap.innerHTML = "";
     seatMap.setAttribute("role", "grid");
-
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const id = seatId(r, c);
@@ -153,52 +152,37 @@
         seat.type = "button";
         seat.dataset.seatId = id;
         seat.textContent = id;
-        if (isTaken) seat.disabled = true;
+
+        if (isTaken) {
+          seat.disabled = true;
+        }
 
         seat.addEventListener("click", () => onSeatClick(id));
         seatMap.appendChild(seat);
       }
     }
-
-    // 타이머 표시 UI
-    if (!timerDisplay) {
-      timerDisplay = document.createElement("div");
-      timerDisplay.style.cssText = "margin:12px auto;font-size:20px;font-weight:700;color:#fff;text-align:center;";
-      seatMap.parentNode.insertBefore(timerDisplay, seatMap);
-    }
-    updateTimerDisplay();
   }
 
-  /* =========================
-   * Timer Logic
-   * ========================= */
-  function startTimer() {
-    clearInterval(timer);
-    timeLeft = RESERVE_TIME_LIMIT;
-    updateTimerDisplay();
-    timer = setInterval(() => {
-      timeLeft--;
-      updateTimerDisplay();
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        showModal("⏰ Time’s up! Bots took the seats!", "https://reactiongifs.com/r/2013/03/failed.gif");
-        resetGame();
-      }
-    }, 1000);
+  function onSeatClick(id) {
+    const takenSet = ensureDateTakenSet(selectedDateId);
+    if (takenSet.has(id)) return;
+    if (selectedSeatIds.has(id)) selectedSeatIds.delete(id);
+    else selectedSeatIds.add(id);
+    updateSelectionUI();
+    const el = seatMap.querySelector(`[data-seat-id="${id}"]`);
+    if (!el) return;
+    el.classList.toggle("seat--selected");
+    el.classList.toggle("seat--available");
   }
-  function updateTimerDisplay() {
-    if (timerDisplay) timerDisplay.textContent = `⏱ ${String(timeLeft).padStart(2, "0")}s remaining`;
-  }
-  function resetGame() {
-    clearInterval(timer);
-    attemptCount = 0;
-    selectedDateId = null;
-    selectedSeatIds = new Set();
-    setTimeout(() => switchScreen(screens.start), 3000);
+
+  function updateSelectionUI() {
+    const count = selectedSeatIds.size;
+    selectedCountEl.textContent = String(count);
+    btnReserve.disabled = count === 0;
   }
 
   /* =========================
-   * Modal
+   * Modal with images
    * ========================= */
   function showModal(message, imgSrc = null) {
     modalMessage.innerHTML = imgSrc
@@ -211,20 +195,40 @@
     modal.classList.add("modal--open");
     modal.setAttribute("aria-hidden", "false");
   }
+
   function closeModal() {
     modal.classList.remove("modal--open");
     modal.setAttribute("aria-hidden", "true");
   }
 
   /* =========================
-   * Concurrency
+   * Concurrency banner
    * ========================= */
   let banner = document.getElementById("concurrency-banner");
   if (!banner) {
     banner = document.createElement("div");
     banner.id = "concurrency-banner";
+    banner.setAttribute("aria-live", "polite");
+    Object.assign(banner.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      right: "0",
+      padding: "14px 16px",
+      textAlign: "center",
+      zIndex: "9999",
+      background: "#2a2f36",
+      color: "#ffd166",
+      borderBottom: "8px solid #101317",
+      fontSize: "22px",
+      fontWeight: "800",
+      letterSpacing: "0.5px",
+    });
     document.body.prepend(banner);
+    document.body.style.paddingTop =
+      (parseInt(getComputedStyle(document.body).paddingTop || 0, 10) + 56) + "px";
   }
+
   function tickConcurrency() {
     const pct = rand(0.005, 0.02);
     const dir = Math.random() < 0.5 ? -1 : 1;
@@ -233,7 +237,7 @@
   }
 
   /* =========================
-   * Success Model + Flow
+   * Success model
    * ========================= */
   function currentSuccessProb() {
     const concNorm = (concurrency - CONC_MIN) / (CONC_MAX - CONC_MIN);
@@ -251,6 +255,14 @@
       spikeActive = true;
       setTimeout(() => { spikeActive = false; scheduleSpike(); }, randInt(2000, 6000));
     }, nextIn);
+  }
+
+  /* =========================
+   * Reservation flow
+   * ========================= */
+  function formatDateLabel(dateId) {
+    const d = DATES.find((x) => x.id === dateId);
+    return d ? d.label : dateId;
   }
 
   function commitReservation(takenSet) {
@@ -281,25 +293,50 @@
     if (!selectedDateId || selectedSeatIds.size === 0) return;
     const takenSet = ensureDateTakenSet(selectedDateId);
     attemptCount++;
-    const win = Math.random() < currentSuccessProb();
+    const p = currentSuccessProb();
+    const win = Math.random() < p;
 
     if (win) {
-      clearInterval(timer);
       commitReservation(takenSet);
       showModal("🎉 Conglaturation!!",
         "https://media0.giphy.com/media/v1.Y2lkPTZjMDliOTUyY2duNTFnOGpocGgyenhwaWR0dWY4NHJ6cjRndXE3ZWg1cmw4aWdmbSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oz9ZE2Oo9zRC/source.gif");
-      resetGame();
+      attemptCount = 0;
+      return;
     } else {
       failReservation(takenSet);
       if (attemptCount >= MAX_ATTEMPTS) {
-        clearInterval(timer);
         showModal("💀 You failed, Bots already occupied every seat",
           "https://reactiongifs.com/r/2013/03/failed.gif");
-        resetGame();
+        attemptCount = 0;
       } else {
         showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
       }
     }
+  }
+
+  /* =========================
+   * Hero banner
+   * ========================= */
+  function addHeroBanner(screen) {
+    if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
+    const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+    const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
+    const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
+    const hero = document.createElement("img");
+    hero.id = "hero-banner";
+    hero.src = primary;
+    hero.alt = "K-pop Demon Traffic Hunters";
+    hero.onerror = () => { if (hero.src !== fallback) hero.src = fallback; };
+    Object.assign(hero.style, {
+      width: "100%",
+      maxWidth: "980px",
+      height: "auto",
+      display: "block",
+      margin: "24px auto 12px",
+      borderRadius: "16px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
+    });
+    screen.insertBefore(hero, screen.firstChild);
   }
 
   /* =========================
@@ -308,12 +345,25 @@
   btnOpen.addEventListener("click", () => {
     renderDateButtons();
     switchScreen(screens.date);
+    addHeroBanner(screens.date);
   });
+
   btnReserve.addEventListener("click", attemptReserve);
   modalCloseEls.forEach((el) => el.addEventListener("click", closeModal));
-  document.getElementById("btn-restart").addEventListener("click", resetGame);
+  modal.addEventListener("click", (e) => {
+    if (e.target && e.target.hasAttribute("data-modal-close")) closeModal();
+  });
+  document.getElementById("btn-restart").addEventListener("click", () => {
+    selectedDateId = null;
+    selectedSeatIds = new Set();
+    attemptCount = 0;
+    switchScreen(screens.start);
+    addHeroBanner(screens.start);
+  });
 
+  // init
   tickConcurrency();
   concTimer = setInterval(tickConcurrency, CONC_STEP_MS);
   scheduleSpike();
+  addHeroBanner(screens.start);
 })();
