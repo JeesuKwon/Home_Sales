@@ -1,3 +1,4 @@
+<script>
 (function () {
   /* =========================
    * Config
@@ -153,10 +154,7 @@
         seat.dataset.seatId = id;
         seat.textContent = id;
 
-        if (isTaken) {
-          seat.disabled = true;
-        }
-
+        if (isTaken) seat.disabled = true;
         seat.addEventListener("click", () => onSeatClick(id));
         seatMap.appendChild(seat);
       }
@@ -182,7 +180,7 @@
   }
 
   /* =========================
-   * Modal with images
+   * Modal
    * ========================= */
   function showModal(message, imgSrc = null) {
     modalMessage.innerHTML = imgSrc
@@ -299,44 +297,36 @@
     if (win) {
       commitReservation(takenSet);
       showModal("🎉 Conglaturation!!",
-        "https://media0.giphy.com/media/v1.Y2lkPTZjMDliOTUyY2duNTFnOGpocGgyenhwaWR0dWY4NHJ6cjRndXE3ZWg1cmw4aWdmbSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3oz9ZE2Oo9zRC/source.gif");
+        "https://media0.giphy.com/media/3oz9ZE2Oo9zRC/source.gif");
       attemptCount = 0;
       return;
     } else {
       failReservation(takenSet);
-if (attemptCount >= MAX_ATTEMPTS) {
-  showModal(":skull: You failed, Bots already occupied every seat",
-    "https://reactiongifs.com/r/2013/03/failed.gif");
-  attemptCount = 0;
-
-  // 3초 후 자동으로 첫 화면으로 복귀
-    setTimeout(() => {
-  selectedDateId = null;
-  selectedSeatIds = new Set();
-  switchScreen(screens.start);
-  addHeroBanner(screens.start);
-}, 2000);;
-}
-
-} else {
-  showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
-}
+      if (attemptCount >= MAX_ATTEMPTS) {
+        showModal("💀 You failed, Bots already occupied every seat",
+          "https://reactiongifs.com/r/2013/03/failed.gif");
+        attemptCount = 0;
+        setTimeout(() => {
+          selectedDateId = null;
+          selectedSeatIds = new Set();
+          switchScreen(screens.start);
+          addHeroBanner(screens.start);
+        }, 2000);
+      } else {
+        showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
+      }
     }
   }
 
   /* =========================
-   * Hero banner
+   * Hero banner (fixed link)
    * ========================= */
   function addHeroBanner(screen) {
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
-    const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
-    const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
-    const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = primary;
+    hero.src = "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
     hero.alt = "K-pop Demon Traffic Hunters";
-    hero.onerror = () => { if (hero.src !== fallback) hero.src = fallback; };
     Object.assign(hero.style, {
       width: "100%",
       maxWidth: "980px",
@@ -377,3 +367,4 @@ if (attemptCount >= MAX_ATTEMPTS) {
   scheduleSpike();
   addHeroBanner(screens.start);
 })();
+</script>
