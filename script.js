@@ -305,17 +305,16 @@
     } else {
       failReservation(takenSet);
 if (attemptCount >= MAX_ATTEMPTS) {
-  showModal("💀 You failed, Bots already occupied every seat",
-    "https://reactiongifs.com/r/2013/03/failed.gif");
+  showModal("💀 You failed, Bots already occupied every seat", "...");
   attemptCount = 0;
-
-  // 3초 후 자동으로 첫 화면으로 복귀
-    setTimeout(() => {
-  selectedDateId = null;
-  selectedSeatIds = new Set();
-  switchScreen(screens.start);
-  addHeroBanner(screens.start);
-}, 2000);
+  // setTimeout 제거. 대신 modalClose 시점에 초기화
+  modalCloseEls.forEach((el) => el.addEventListener("click", () => {
+    selectedDateId = null;
+    selectedSeatIds = new Set();
+    switchScreen(screens.start);
+    addHeroBanner(screens.start);
+  }));
+}
 
 } else {
   showModal(`Someone else reserved first. (${attemptCount}/${MAX_ATTEMPTS} tries)`);
