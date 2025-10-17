@@ -1,4 +1,4 @@
-<script>
+
 (function () {
   /* =========================
    * Config
@@ -367,4 +367,4 @@
   scheduleSpike();
   addHeroBanner(screens.start);
 })();
-</script>
+
