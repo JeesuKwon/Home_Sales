@@ -359,24 +359,7 @@
   /* =========================
    * Hero banner
    * ========================= */
-  function addHeroBanner(screen) {
-    if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
-    const hero = document.createElement("img");
-    hero.id = "hero-banner";
-    hero.src =
-      "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
-    hero.alt = "K-pop Demon Traffic Hunters";
-    Object.assign(hero.style, {
-      width: "100%",
-      maxWidth: "980px",
-      height: "auto",
-      display: "block",
-      margin: "24px auto 12px",
-      borderRadius: "16px",
-      boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-    });
-    screen.insertBefore(hero, screen.firstChild);
-  }
+  function addHeroBanner(screen) { if (!screen || document.querySelector(#${screen.id} #hero-banner)) return; const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ"; const primary = https://lh3.googleusercontent.com/d/${id}=w1600; const fallback = https://drive.google.com/uc?export=view&id=${id}; const hero = document.createElement("img"); hero.id = "hero-banner"; hero.src = primary; hero.alt = "K-pop Demon Traffic Hunters"; hero.onerror = () => { if (hero.src !== fallback) hero.src = fallback; }; Object.assign(hero.style, { width: "100%", maxWidth: "980px", height: "auto", display: "block", margin: "24px auto 12px", borderRadius: "16px", boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }); screen.insertBefore(hero, screen.firstChild); }
 
   /* =========================
    * Wiring
