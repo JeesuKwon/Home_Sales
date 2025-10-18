@@ -296,7 +296,7 @@
 
     if (win) {
       commitReservation(takenSet);
-      showModal("🎉 Conglaturation!!",
+      showModal("🎉 Congratulation!!",
         "https://media0.giphy.com/media/3oz9ZE2Oo9zRC/source.gif");
       attemptCount = 0;
       return;
@@ -325,7 +325,7 @@
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = "https://drive.usercontent.google.com/download?id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ&export=view&authuser=2";
+    hero.src = "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
     hero.alt = "K-pop Demon Traffic Hunters";
     Object.assign(hero.style, {
       width: "100%",
