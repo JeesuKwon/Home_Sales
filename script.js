@@ -1,4 +1,3 @@
-
 (function () {
   /* =========================
    * Config
@@ -27,6 +26,9 @@
   const STEAL_RATIO_MAX = 0.9;
   const RACE_STEAL_PROB = 0.8;
 
+  const HERO_IMG_URL =
+    "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+
   /* =========================
    * DOM
    * ========================= */
@@ -47,30 +49,17 @@
   const modalMessage = document.getElementById("modal-message");
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
 
-  (function applyNotoSans() {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800;900&display=swap";
-    document.head.appendChild(link);
-
-    const style = document.createElement("style");
-    style.textContent =
-      "*{font-family:'Noto Sans',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif !important;}";
-    document.head.appendChild(style);
-  })();
-
   /* =========================
    * State
    * ========================= */
   let selectedDateId = null;
   const dateIdToTakenSet = new Map();
   let selectedSeatIds = new Set();
-
   let concurrency = randInt(CONC_MIN, CONC_MAX);
   let concTimer = null;
-
   let attemptCount = 0;
   const MAX_ATTEMPTS = 3;
+  let spikeActive = false;
 
   /* =========================
    * Utils
@@ -89,6 +78,36 @@
   }
 
   /* =========================
+   * Banner
+   * ========================= */
+  const banner = document.createElement("div");
+  banner.id = "concurrency-banner";
+  Object.assign(banner.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    right: "0",
+    padding: "14px 16px",
+    textAlign: "center",
+    zIndex: "9999",
+    background: "#2a2f36",
+    color: "#ffd166",
+    borderBottom: "8px solid #101317",
+    fontSize: "22px",
+    fontWeight: "800",
+    letterSpacing: "0.5px",
+  });
+  document.body.prepend(banner);
+  document.body.style.paddingTop = "56px";
+
+  function tickConcurrency() {
+    const pct = rand(0.005, 0.02);
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    concurrency = clamp(Math.floor(concurrency * (1 + dir * pct)), CONC_MIN, CONC_MAX);
+    banner.textContent = `Concurrent users: ${concurrency.toLocaleString()} waiting`;
+  }
+
+  /* =========================
    * Pre-taken seats
    * ========================= */
   function pickRandomTakenSeats(totalSeats) {
@@ -102,6 +121,7 @@
     }
     return taken;
   }
+
   function ensureDateTakenSet(dateId) {
     if (!dateIdToTakenSet.has(dateId)) {
       dateIdToTakenSet.set(dateId, pickRandomTakenSeats(ROWS * COLS));
@@ -141,7 +161,6 @@
   function renderSeatMap() {
     const takenSet = ensureDateTakenSet(selectedDateId);
     seatMap.innerHTML = "";
-    seatMap.setAttribute("role", "grid");
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const id = seatId(r, c);
@@ -153,7 +172,6 @@
         seat.type = "button";
         seat.dataset.seatId = id;
         seat.textContent = id;
-
         if (isTaken) seat.disabled = true;
         seat.addEventListener("click", () => onSeatClick(id));
         seatMap.appendChild(seat);
@@ -182,56 +200,14 @@
   /* =========================
    * Modal
    * ========================= */
-  function showModal(message, imgSrc = null) {
-    modalMessage.innerHTML = imgSrc
-      ? `<div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-           <img src="${imgSrc}" alt="Result Image"
-                style="width:320px;max-width:90%;height:auto;border-radius:12px;object-fit:cover;">
-           <div style="font-size:22px;font-weight:800;color:#fff;text-align:center;">${message}</div>
-         </div>`
-      : `<div style="font-size:22px;font-weight:800;color:#fff;text-align:center;">${message}</div>`;
+  function showModal(message) {
+    modalMessage.innerHTML = `<div style="font-size:22px;font-weight:800;color:#fff;text-align:center;">${message}</div>`;
     modal.classList.add("modal--open");
     modal.setAttribute("aria-hidden", "false");
   }
-
   function closeModal() {
     modal.classList.remove("modal--open");
     modal.setAttribute("aria-hidden", "true");
-  }
-
-  /* =========================
-   * Concurrency banner
-   * ========================= */
-  let banner = document.getElementById("concurrency-banner");
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "concurrency-banner";
-    banner.setAttribute("aria-live", "polite");
-    Object.assign(banner.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      right: "0",
-      padding: "14px 16px",
-      textAlign: "center",
-      zIndex: "9999",
-      background: "#2a2f36",
-      color: "#ffd166",
-      borderBottom: "8px solid #101317",
-      fontSize: "22px",
-      fontWeight: "800",
-      letterSpacing: "0.5px",
-    });
-    document.body.prepend(banner);
-    document.body.style.paddingTop =
-      (parseInt(getComputedStyle(document.body).paddingTop || 0, 10) + 56) + "px";
-  }
-
-  function tickConcurrency() {
-    const pct = rand(0.005, 0.02);
-    const dir = Math.random() < 0.5 ? -1 : 1;
-    concurrency = clamp(Math.floor(concurrency * (1 + dir * pct)), CONC_MIN, CONC_MAX);
-    banner.textContent = `Concurrent users: ${concurrency.toLocaleString()} waiting`;
   }
 
   /* =========================
@@ -246,7 +222,6 @@
     return clamp(raw, MIN_SUCCESS, MAX_SUCCESS);
   }
 
-  let spikeActive = false;
   function scheduleSpike() {
     const nextIn = randInt(10000, 20000);
     setTimeout(() => {
@@ -256,18 +231,12 @@
   }
 
   /* =========================
-   * Reservation flow
+   * Reservation
    * ========================= */
-  function formatDateLabel(dateId) {
-    const d = DATES.find((x) => x.id === dateId);
-    return d ? d.label : dateId;
-  }
-
   function commitReservation(takenSet) {
     const reserved = Array.from(selectedSeatIds);
     reserved.forEach((id) => takenSet.add(id));
-    confirmedSeatsEl.textContent =
-      `Reserved seats for ${formatDateLabel(selectedDateId)}: ${reserved.join(", ")}`;
+    confirmedSeatsEl.textContent = `Reserved seats for ${selectedDateId}: ${reserved.join(", ")}`;
     selectedSeatIds.clear();
     renderSeatMap();
     updateSelectionUI();
@@ -293,18 +262,14 @@
     attemptCount++;
     const p = currentSuccessProb();
     const win = Math.random() < p;
-
     if (win) {
       commitReservation(takenSet);
-      showModal("🎉 Congratulation!!",
-        "https://media0.giphy.com/media/3oz9ZE2Oo9zRC/source.gif");
+      showModal("🎉 Conglaturation!!");
       attemptCount = 0;
-      return;
     } else {
       failReservation(takenSet);
       if (attemptCount >= MAX_ATTEMPTS) {
-        showModal("💀 You failed, Bots already occupied every seat",
-          "https://reactiongifs.com/r/2013/03/failed.gif");
+        showModal("💀 You failed, Bots occupied every seat");
         attemptCount = 0;
         setTimeout(() => {
           selectedDateId = null;
@@ -319,13 +284,13 @@
   }
 
   /* =========================
-   * Hero banner (fixed link)
+   * Hero banner
    * ========================= */
   function addHeroBanner(screen) {
     if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
     const hero = document.createElement("img");
     hero.id = "hero-banner";
-    hero.src = "https://drive.google.com/uc?export=view&id=1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+    hero.src = HERO_IMG_URL;
     hero.alt = "K-pop Demon Traffic Hunters";
     Object.assign(hero.style, {
       width: "100%",
@@ -334,8 +299,9 @@
       display: "block",
       margin: "24px auto 12px",
       borderRadius: "16px",
-      boxShadow: "0 8px 24px rgba(0,0,0,0.35)"
+      boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
     });
+    hero.onerror = () => console.error("Hero image failed to load:", HERO_IMG_URL);
     screen.insertBefore(hero, screen.firstChild);
   }
 
@@ -347,12 +313,8 @@
     switchScreen(screens.date);
     addHeroBanner(screens.date);
   });
-
   btnReserve.addEventListener("click", attemptReserve);
   modalCloseEls.forEach((el) => el.addEventListener("click", closeModal));
-  modal.addEventListener("click", (e) => {
-    if (e.target && e.target.hasAttribute("data-modal-close")) closeModal();
-  });
   document.getElementById("btn-restart").addEventListener("click", () => {
     selectedDateId = null;
     selectedSeatIds = new Set();
@@ -361,10 +323,11 @@
     addHeroBanner(screens.start);
   });
 
-  // init
+  /* =========================
+   * Init
+   * ========================= */
   tickConcurrency();
   concTimer = setInterval(tickConcurrency, CONC_STEP_MS);
   scheduleSpike();
   addHeroBanner(screens.start);
 })();
-
