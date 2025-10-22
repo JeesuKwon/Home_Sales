@@ -35,13 +35,13 @@
     seat: document.getElementById("seat-screen"),
     confirmation: document.getElementById("confirmation-screen"),
   };
+
   const btnOpen = document.getElementById("btn-open");
   const dateList = document.getElementById("date-list");
   const seatMap = document.getElementById("seat-map");
   const btnReserve = document.getElementById("btn-reserve");
   const selectedCountEl = document.getElementById("selected-count");
   const confirmedSeatsEl = document.getElementById("confirmed-seats");
-
   const modal = document.getElementById("modal");
   const modalMessage = document.getElementById("modal-message");
   const modalCloseEls = modal.querySelectorAll("[data-modal-close]");
@@ -81,18 +81,23 @@
   function clamp(x, min, max) {
     return Math.max(min, Math.min(max, x));
   }
+
   function rand(a, b) {
     return a + Math.random() * (b - a);
   }
+
   function randInt(a, b) {
     return Math.floor(rand(a, b));
   }
+
   function alphaForRow(i) {
     return String.fromCharCode("A".charCodeAt(0) + i);
   }
+
   function seatId(r, c) {
     return `${alphaForRow(r)}${c + 1}`;
   }
+
   function shuffleArray(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -360,32 +365,32 @@
    * Hero banner
    * ========================= */
   function addHeroBanner(screen) {
-  if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
+    if (!screen || document.querySelector(`#${screen.id} #hero-banner`)) return;
 
-  const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
-  const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
-  const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
+    const id = "1jOnL0Lw4trHbN1L74uT83gynLsciRObZ";
+    const primary = `https://lh3.googleusercontent.com/d/${id}=w1600`;
+    const fallback = `https://drive.google.com/uc?export=view&id=${id}`;
 
-  const hero = document.createElement("img");
-  hero.id = "hero-banner";
-  hero.src = primary;
-  hero.alt = "K-pop Demon Traffic Hunters";
-  hero.onerror = () => {
-    if (hero.src !== fallback) hero.src = fallback;
-  };
+    const hero = document.createElement("img");
+    hero.id = "hero-banner";
+    hero.src = primary;
+    hero.alt = "K-pop Demon Traffic Hunters";
+    hero.onerror = () => {
+      if (hero.src !== fallback) hero.src = fallback;
+    };
 
-  Object.assign(hero.style, {
-    width: "100%",
-    maxWidth: "980px",
-    height: "auto",
-    display: "block",
-    margin: "24px auto 12px",
-    borderRadius: "16px",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-  });
+    Object.assign(hero.style, {
+      width: "100%",
+      maxWidth: "980px",
+      height: "auto",
+      display: "block",
+      margin: "24px auto 12px",
+      borderRadius: "16px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+    });
 
-  screen.insertBefore(hero, screen.firstChild);
-}
+    screen.insertBefore(hero, screen.firstChild);
+  }
 
   /* =========================
    * Wiring
@@ -401,6 +406,7 @@
   modal.addEventListener("click", (e) => {
     if (e.target && e.target.hasAttribute("data-modal-close")) closeModal();
   });
+
   document.getElementById("btn-restart").addEventListener("click", () => {
     selectedDateId = null;
     selectedSeatIds = new Set();
