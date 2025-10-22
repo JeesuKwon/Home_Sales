@@ -15,8 +15,8 @@
   const MAX_SUCCESS = 0.85;
   const MIN_SUCCESS = 0.02;
 
-  const PRETAKEN_MIN = 0.20;
-  const PRETAKEN_MAX = 0.35;
+  const PRETAKEN_MIN = 0.60;
+  const PRETAKEN_MAX = 0.85;
 
   const CONC_MIN = 3000;
   const CONC_MAX = 60000;
