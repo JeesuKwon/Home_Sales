@@ -10,8 +10,8 @@
     { id: "2025-12-25", label: "25, Dec" },
   ];
 
-  const BASE_SUCCESS = 0.20;
-  const SUCCESS_BONUS = 0.05;
+  const BASE_SUCCESS = 0.08;
+  const SUCCESS_BONUS = 0.02;
   const MAX_SUCCESS = 0.85;
   const MIN_SUCCESS = 0.02;
 
